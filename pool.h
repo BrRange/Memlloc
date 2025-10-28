@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 #ifndef MEMLLOC_BLOCK_
 #define MEMLLOC_BLOCK_
@@ -23,8 +22,6 @@ void pool_pop(Pool *pool, void *addr);
 void pool_free(Pool *pool);
 
 void pool_destroy(Pool *pool);
-
-bool pool_available(Pool *pool);
 
 #endif
 
