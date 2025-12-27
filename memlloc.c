@@ -2,8 +2,8 @@
 #include "pool.h"
 #include "slide.h"
 
-Arena arena_new(uint32_t bytes){
-  bytes = bytes % 8 ? 8ull - (bytes % 8ull) + bytes : bytes;
+Arena arena_new(u32 bytes){
+  bytes = (bytes + 7) & ~7;
   Arena arn = {
     .mem = malloc(bytes),
     .cap = bytes
@@ -11,14 +11,14 @@ Arena arena_new(uint32_t bytes){
   return arn;
 }
 
-void *arena_alloc(Arena *arn, uint32_t bytes){
+void *arena_alloc(Arena *arn, u32 bytes){
   if(arn->cursor + bytes > arn->cap) return NULL;
   void *mem = arn->mem + arn->cursor;
   arn->cursor += bytes;
   return mem;
 }
 
-void arena_pop(Arena *arn, uint32_t bytes){
+void arena_pop(Arena *arn, u32 bytes){
   if(bytes >= arn->cursor)
     arn->cursor = 0;
   else
@@ -34,18 +34,17 @@ void arena_destroy(Arena *arn){
   *arn = (Arena){0};
 }
 
-Pool pool_new(uint32_t chkSize, uint32_t chkCount){
-  chkSize = chkSize % 8 ? 8ull - (chkSize % 8ull) + chkSize : chkSize;
+Pool pool_new(u32 chkSize, u32 chkCount){
+  chkSize = (chkSize + 7) & ~7;
   Pool pool = {
     .root = malloc(1ull * chkCount * chkSize),
     .ready = pool.root,
     .chkSize = chkSize,
     .chkCount = chkCount,
   };
-  uint64_t chkOffset = chkSize / 8ull;
   Chunk *init = pool.root;
-  for(uint32_t i = 1; i < chkCount; ++i){
-    init->next = init + chkOffset;
+  for(u32 i = 1; i < chkCount; ++i){
+    init->next = (Chunk*)((u8*)init + pool.chkSize);
     init = init->next;
   }
   init->next = NULL;
@@ -74,8 +73,8 @@ void pool_destroy(Pool *pool){
   *pool = (Pool){0};
 }
 
-Slide slide_new(uint32_t bytes){
-  bytes = bytes % 8 ? 8ull - (bytes % 8ull) + bytes : bytes;
+Slide slide_new(u32 bytes){
+  bytes = (bytes + 7) & ~7;
   Slide sld = {
     .mem = malloc(bytes),
     .cap = bytes
@@ -83,7 +82,7 @@ Slide slide_new(uint32_t bytes){
   return sld;
 }
 
-void *slide_alloc(Slide *sld, uint32_t bytes){
+void *slide_alloc(Slide *sld, u32 bytes){
   if(sld->left >= bytes){
     sld->left -= bytes;
     return sld->mem + sld->left;
@@ -96,7 +95,7 @@ void *slide_alloc(Slide *sld, uint32_t bytes){
   return NULL;
 }
 
-int slide_pop(Slide *sld, uint32_t index, uint32_t bytes){
+int slide_pop(Slide *sld, u32 index, u32 bytes){
   if(index == sld->left){
     sld->left += bytes;
     return 1;
@@ -108,12 +107,11 @@ int slide_pop(Slide *sld, uint32_t index, uint32_t bytes){
   return 0;
 }
 
-uint32_t slide_getIndex(Slide *sld, void *mem){
-  uint8_t *byteMem = mem;
-  return byteMem - sld->mem;
+u32 slide_getIndex(Slide *sld, void *mem){
+  return mem - sld->mem;
 }
 
-void *slide_getMem(Slide *sld, uint32_t index){
+void *slide_getMem(Slide *sld, u32 index){
   return sld->mem + index;
 }
 

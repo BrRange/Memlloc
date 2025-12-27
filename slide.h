@@ -6,21 +6,23 @@
 #include "rustydef.h"
 
 typedef struct Slide{
-  uint8_t *mem;
-  uint32_t cap;
-  uint32_t left, right;
+  void *mem;
+  u32 cap;
+  u32 left, right;
 } Slide;
 
-Slide slide_new(uint32_t bytes);
+Slide slide_new(u32 bytes);
 
-void *slide_alloc(Slide *sld, uint32_t bytes);
+void *slide_alloc(Slide *sld, u32 bytes);
 
-/** Limitation: Surrounded memory cannot be popped */
-int slide_pop(Slide *sld, uint32_t index, uint32_t bytes);
+/** Limitation: Surrounded memory cannot be popped
+ * \return If the memory was popped
+*/
+int slide_pop(Slide *sld, u32 index, u32 bytes);
 
-uint32_t slide_getIndex(Slide *sld, void *mem);
+u32 slide_getIndex(Slide *sld, void *mem);
 
-void *slide_getMem(Slide *sld, uint32_t index);
+void *slide_getMem(Slide *sld, u32 index);
 
 void slide_free(Slide *sld);
 

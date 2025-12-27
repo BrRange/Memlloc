@@ -11,10 +11,10 @@ typedef struct Chunk{
 
 typedef struct Pool{
   Chunk *root, *ready;
-  uint32_t chkSize, chkCount;
+  u32 chkSize, chkCount;
 } Pool;
 
-Pool pool_new(uint32_t chkSize, uint32_t chkCount);
+Pool pool_new(u32 chkSize, u32 chkCount);
 
 void *pool_alloc(Pool *pool);
 

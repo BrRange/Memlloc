@@ -6,15 +6,15 @@
 #include "rustydef.h"
 
 typedef struct Arena{
-  uint8_t *mem;
-  uint32_t cursor, cap;
+  void *mem;
+  u32 cursor, cap;
 } Arena;
 
-Arena arena_new(uint32_t bytes);
+Arena arena_new(u32 bytes);
 
-void *arena_alloc(Arena *arn, uint32_t bytes);
+void *arena_alloc(Arena *arn, u32 bytes);
 
-void arena_pop(Arena *arn, uint32_t bytes);
+void arena_pop(Arena *arn, u32 bytes);
 
 void arena_free(Arena *arn);
 
