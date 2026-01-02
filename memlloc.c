@@ -2,8 +2,12 @@
 #include "pool.h"
 #include "slide.h"
 
+#ifndef MEMLLOC_ALIGN
+#define MEMLLOC_ALIGN(x) ((x + (sizeof(void*) - 1)) & ~(sizeof(void*) - 1))
+#endif
+
 Arena arena_new(u32 bytes){
-  bytes = (bytes + 7) & ~7;
+  bytes = MEMLLOC_ALIGN(bytes);
   Arena arn = {
     .mem = malloc(bytes),
     .cap = bytes
@@ -35,7 +39,7 @@ void arena_destroy(Arena *arn){
 }
 
 Pool pool_new(u32 chkSize, u32 chkCount){
-  chkSize = (chkSize + 7) & ~7;
+  chkSize = MEMLLOC_ALIGN(chkSize);
   Pool pool = {
     .root = malloc(1ull * chkCount * chkSize),
     .ready = pool.root,
@@ -73,8 +77,48 @@ void pool_destroy(Pool *pool){
   *pool = (Pool){0};
 }
 
+PoolLink *poolLink_new(u32 chkSize, u32 chkCount){
+  PoolLink *poolLink = malloc(sizeof *poolLink);
+  poolLink->pool = pool_new(chkSize, chkCount);
+  poolLink->link = NULL;
+  return poolLink;
+}
+
+void *poolLink_alloc(PoolLink *poolLink){
+  void *mem = pool_alloc(&poolLink->pool);
+  if(!mem){
+    if(!poolLink->link)
+      poolLink->link = poolLink_new(poolLink->pool.chkSize, poolLink->pool.chkCount * 2);
+    return poolLink_alloc(poolLink->link);
+  }
+  return mem;
+}
+
+void poolLink_pop(PoolLink *poolLink, void *addr){
+  isz offset = (Chunk*)addr - poolLink->pool.root;
+  if(offset < 0 || offset >= poolLink->pool.chkCount){
+    if(poolLink->link) poolLink_pop(poolLink->link, addr);
+  }
+  else pool_pop(&poolLink->pool, addr);
+}
+
+void poolLink_free(PoolLink *poolLink){
+  PoolLink *next = poolLink->link;
+  pool_free(&poolLink->pool);
+  free(poolLink);
+  if(next) poolLink_free(next);
+}
+
+void poolLink_destroy(PoolLink *poolLink){
+  PoolLink *next = poolLink->link;
+  pool_destroy(&poolLink->pool);
+  poolLink->link = NULL;
+  free(poolLink);
+  if(next) poolLink_destroy(next);
+}
+
 Slide slide_new(u32 bytes){
-  bytes = (bytes + 7) & ~7;
+  bytes = MEMLLOC_ALIGN(bytes);
   Slide sld = {
     .mem = malloc(bytes),
     .cap = bytes

@@ -24,4 +24,19 @@ void pool_free(Pool *pool);
 
 void pool_destroy(Pool *pool);
 
+typedef struct PoolLink{
+  Pool pool;
+  struct PoolLink *link;
+} PoolLink;
+
+PoolLink *poolLink_new(u32 chkSize, u32 chkCount);
+
+void *poolLink_alloc(PoolLink *poolLink);
+
+void poolLink_pop(PoolLink *poolLink, void *addr);
+
+void poolLink_free(PoolLink *poolLink);
+
+void poolLink_destroy(PoolLink *poolLink);
+
 #endif
