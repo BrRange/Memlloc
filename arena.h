@@ -1,9 +1,29 @@
 #ifndef MEMLLOC_ARENA_
 #define MEMLLOC_ARENA_
 
-#include <stdlib.h>
+#ifndef RUSTYDEFH
+#define RUSTYDEFH
+
+#define arrLen(_arr) (sizeof(_arr) / sizeof*(_arr))
+#define deref(_ptr, _type) (*(_type*)(_ptr))
+
 #include <stdint.h>
-#include "rustydef.h"
+#include <stdbool.h>
+
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+typedef intptr_t isz;
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+typedef uintptr_t usz;
+typedef float f32;
+typedef double f64;
+
+#endif
 
 typedef struct Arena{
   void *mem;
@@ -15,6 +35,8 @@ Arena arena_new(u32 bytes);
 void *arena_alloc(Arena *arn, u32 bytes);
 
 void arena_pop(Arena *arn, u32 bytes);
+
+void arena_scratch(Arena *arn);
 
 void arena_free(Arena *arn);
 

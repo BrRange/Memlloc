@@ -1,0 +1,104 @@
+#ifndef MODULE_MEMLLOC_
+#define MODULE_MEMLLOC_
+
+#ifndef RUSTYDEFH
+#define RUSTYDEFH
+
+#define arrLen(_arr) (sizeof(_arr) / sizeof*(_arr))
+#define deref(_ptr, _type) (*(_type*)(_ptr))
+
+#include <stdint.h>
+#include <stdbool.h>
+
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+typedef intptr_t isz;
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+typedef uintptr_t usz;
+typedef float f32;
+typedef double f64;
+
+#endif
+
+typedef struct Arena{
+  void *mem;
+  u32 cursor, cap;
+} Arena;
+
+typedef struct MarkMarker MarkMarker;
+
+typedef struct Mark{
+  void *root;
+  MarkMarker *ready;
+  usz cap;
+} Mark;
+
+typedef struct PoolChunk{
+  struct PoolChunk *next;
+} PoolChunk;
+
+typedef struct Pool{
+  PoolChunk *root, *ready;
+  u32 chkSize, chkCount;
+} Pool;
+
+typedef struct PoolLink{
+  Pool pool;
+  struct PoolLink *link;
+} PoolLink;
+
+typedef struct Slide{
+  void *mem;
+  u32 cap;
+  u32 left, right;
+} Slide;
+
+struct module_memlloc{
+  struct module_memlloc_arena{
+    Arena (*new)(u32 bytes);
+    void *(*alloc)(Arena *arn, u32 bytes);
+    void (*pop)(Arena *arn, u32 bytes);
+    void (*scratch)(Arena *arn);
+    void (*free)(Arena *arn);
+    void (*destroy)(Arena *arn);
+  } arena;
+  struct module_memlloc_mark{
+    Mark (*new)(usz size);
+    void *(*alloc)(Mark *mark, usz size);
+    void (*pop)(Mark *mark, void *mem, usz size);
+    void (*defragment)(Mark *mark);
+    void (*free)(Mark *mark);
+    void (*destroy)(Mark *mark);
+    usz pageSize;
+  } mark;
+  struct module_memlloc_pool{
+    Pool (*new)(u32 chkSize, u32 chkCount);
+    void *(*alloc)(Pool *pool);
+    void (*pop)(Pool *pool, void *addr);
+    void (*free)(Pool *pool);
+    void (*destroy)(Pool *pool);
+  } pool;
+  struct module_memlloc_poolLink{
+    PoolLink *(*new)(u32 chkSize, u32 chkCount);
+    void *(*alloc)(PoolLink *pool);
+    void (*pop)(PoolLink *pool, void *addr);
+    void (*free)(PoolLink *pool);
+    void (*destroy)(PoolLink *pool);
+  } poolLink;
+  struct module_memlloc_slide{
+    Slide (*new)(u32 bytes);
+    void *(*alloc)(Slide *sld, u32 bytes);
+    int (*pop)(Slide *sld, void *mem, u32 bytes);
+    void (*free)(Slide *sld);
+    void (*destroy)(Slide *sld);
+  } slide;
+};
+
+extern const struct module_memlloc memlloc;
+
+#endif
