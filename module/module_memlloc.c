@@ -139,6 +139,10 @@ static void module_memlloc_mark_destroy(Mark *mark){
   *mark = (Mark){0};
 }
 
+typedef struct PoolChunk{
+  PoolChunk *next;
+} PoolChunk;
+
 static Pool module_memlloc_pool_new(u32 chkSize, u32 chkCount){
   chkSize = MEMLLOC_ALIGN(chkSize);
   Pool pool = {

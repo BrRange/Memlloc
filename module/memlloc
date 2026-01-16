@@ -38,9 +38,7 @@ typedef struct Mark{
   usz cap;
 } Mark;
 
-typedef struct PoolChunk{
-  struct PoolChunk *next;
-} PoolChunk;
+typedef struct PoolChunk PoolChunk;
 
 typedef struct Pool{
   PoolChunk *root, *ready;
