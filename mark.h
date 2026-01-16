@@ -33,7 +33,7 @@ typedef struct Mark{
   usz cap;
 } Mark;
 
-Mark new(usz size);
+Mark mark_new(usz size);
 
 void *mark_alloc(Mark *mark, usz size);
 

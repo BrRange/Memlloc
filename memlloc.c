@@ -143,6 +143,10 @@ void mark_destroy(Mark *mark){
   *mark = (Mark){0};
 }
 
+struct PoolChunk{
+  PoolChunk *next;
+};
+
 Pool pool_new(u32 chkSize, u32 chkCount){
   chkSize = MEMLLOC_ALIGN(chkSize);
   Pool pool = {

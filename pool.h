@@ -25,9 +25,7 @@ typedef double f64;
 
 #endif
 
-typedef struct PoolChunk{
-  struct PoolChunk *next;
-} PoolChunk;
+typedef struct PoolChunk PoolChunk;
 
 typedef struct Pool{
   PoolChunk *root, *ready;
