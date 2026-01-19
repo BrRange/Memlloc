@@ -1,9 +1,11 @@
 #include "arena.h"
+#include "fold.h"
 #include "mark.h"
 #include "pool.h"
 #include "slide.h"
 
 #include <malloc.h>
+#include <memory.h>
 
 #ifndef MEMLLOC_ALIGN
 #define MEMLLOC_ALIGN(x) ((x + (sizeof(void*) - 1)) & ~(sizeof(void*) - 1))
@@ -41,8 +43,45 @@ void arena_free(Arena *arn){
 }
 
 void arena_destroy(Arena *arn){
+  memset(arn->mem, 0, arn->cap);
   free(arn->mem);
   *arn = (Arena){0};
+}
+
+Fold *fold_new(u32 type, u32 len){
+  Fold *fold = malloc(sizeof *fold + (type * len));
+  fold->next = NULL;
+  fold->type = type;
+  fold->len = len;
+  return fold;
+}
+
+void *fold_get(Fold *fold, u32 index){
+  if(index < fold->len) return fold->mem + (fold->type * index);
+  if(!fold->next) fold->next = fold_new(fold->type, fold->len * 2);
+  return fold_get(fold->next, index - fold->len);
+}
+
+void fold_reduce(Fold *fold, u32 len){
+  if(!fold->next) return;
+  if(len <= fold->len){
+    fold_free(fold->next);
+    fold->next = NULL;
+  }
+  else fold_reduce(fold->next, len - fold->len);
+}
+
+void fold_free(Fold *fold){
+  Fold *next = fold->next;
+  free(fold);
+  if(next) fold_free(next);
+}
+
+void fold_destroy(Fold *fold){
+  Fold *next = fold->next;
+  memset(fold, 0, sizeof *fold + fold->type * fold->len);
+  free(fold);
+  if(next) fold_destroy(next);
 }
 
 struct MarkMarker{
@@ -93,17 +132,39 @@ void *mark_alloc(Mark *mark, usz size){
   return NULL;
 }
 
+void mark_quickPop(Mark *mark, void *mem, usz size){
+  MarkMarker *marker = mark->ready;
+  mark->ready = mem;
+  mark->ready->size = size;
+  mark->ready->next = marker;
+}
+
+static void mark_localDefrag(MarkMarker *marker){
+recursive:
+  if(!marker->next) return;
+  if((u8*)marker + marker->size == (u8*)marker->next){
+    marker->size += marker->next->size;
+    marker->next = marker->next->next;
+    goto recursive;
+  }
+}
+
 void mark_pop(Mark *mark, void *mem, usz size){
   size += sizeof(MarkMarker) - 1;
   size &= ~(sizeof(MarkMarker) - 1);
-  MarkMarker *marker = mark->ready;
-  mark->ready = mem;
-  if(mem + size == (void*)marker){
-    size += marker->size;
-    marker = marker->next;
+  MarkMarker *marker = mark->ready, *cast = mem;
+  if(!marker || cast < marker){
+    cast->next = marker;
+    cast->size = size;
+    mark->ready = cast;
+    mark_localDefrag(mark->ready);
+    return;
   }
-  mark->ready->size = size;
-  mark->ready->next = marker;
+  while(marker->next && cast > marker->next) marker = marker->next;
+  cast->next = marker->next;
+  cast->size = size;
+  marker->next = cast;
+  mark_localDefrag(marker);
 }
 
 void mark_defragment(Mark *mark){
@@ -139,9 +200,12 @@ void mark_free(Mark *mark){
 }
 
 void mark_destroy(Mark *mark){
+  memset(mark->root, 0, mark->cap);
   free(mark->root);
   *mark = (Mark){0};
 }
+
+const usz mark_pageSize = sizeof(MarkMarker);
 
 struct PoolChunk{
   PoolChunk *next;
@@ -182,6 +246,7 @@ void pool_free(Pool *pool){
 }
 
 void pool_destroy(Pool *pool){
+  memset(pool->root, 0, pool->chkSize * pool->chkCount);
   free(pool->root);
   *pool = (Pool){0};
 }
@@ -266,6 +331,7 @@ void slide_free(Slide *sld){
 }
 
 void slide_destroy(Slide *sld){
+  memset(sld->mem, 0, sld->cap);
   free(sld->mem);
   *sld = (Slide){0};
 }

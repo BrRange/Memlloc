@@ -30,6 +30,12 @@ typedef struct Arena{
   u32 cursor, cap;
 } Arena;
 
+typedef struct Fold{
+  struct Fold *next;
+  u32 type, len;
+  u8 mem[];
+} Fold;
+
 typedef struct MarkMarker MarkMarker;
 
 typedef struct Mark{
@@ -65,9 +71,17 @@ struct module_memlloc{
     void (*free)(Arena *arn);
     void (*destroy)(Arena *arn);
   } arena;
+  struct module_memlloc_fold{
+    Fold *(*new)(u32 type, u32 len);
+    void *(*get)(Fold *fold, u32 index);
+    void (*reduce)(Fold *fold, u32 len);
+    void (*free)(Fold *fold);
+    void (*destroy)(Fold *fold);
+  } fold;
   struct module_memlloc_mark{
     Mark (*new)(usz size);
     void *(*alloc)(Mark *mark, usz size);
+    void (*quickPop)(Mark *mark, void *mem, usz size);
     void (*pop)(Mark *mark, void *mem, usz size);
     void (*defragment)(Mark *mark);
     void (*free)(Mark *mark);

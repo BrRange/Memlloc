@@ -1,5 +1,6 @@
 #include "memlloc"
 #include <malloc.h>
+#include <memory.h>
 
 #ifndef MEMLLOC_ALIGN
 #define MEMLLOC_ALIGN(x) ((x + (sizeof(void*) - 1)) & ~(sizeof(void*) - 1))
@@ -37,8 +38,45 @@ static void module_memlloc_arena_free(Arena *arn){
 }
 
 static void module_memlloc_arena_destroy(Arena *arn){
+  memset(arn->mem, 0, arn->cap);
   free(arn->mem);
   *arn = (Arena){0};
+}
+
+static Fold *module_memlloc_fold_new(u32 type, u32 len){
+  Fold *fold = malloc(sizeof *fold + (type * len));
+  fold->next = NULL;
+  fold->type = type;
+  fold->len = len;
+  return fold;
+}
+
+static void *module_memlloc_fold_get(Fold *fold, u32 index){
+  if(index < fold->len) return fold->mem + (fold->type * index);
+  if(!fold->next) fold->next = module_memlloc_fold_new(fold->type, fold->len * 2);
+  return module_memlloc_fold_get(fold->next, index - fold->len);
+}
+
+static void module_memlloc_fold_free(Fold *fold){
+  Fold *next = fold->next;
+  free(fold);
+  if(next) module_memlloc_fold_free(next);
+}
+
+static void module_memlloc_fold_reduce(Fold *fold, u32 len){
+  if(!fold->next) return;
+  if(len <= fold->len){
+    module_memlloc_fold_free(fold->next);
+    fold->next = NULL;
+  }
+  else module_memlloc_fold_reduce(fold->next, len - fold->len);
+}
+
+static void module_memlloc_fold_destroy(Fold *fold){
+  Fold *next = fold->next;
+  memset(fold, 0, sizeof *fold + fold->type * fold->len);
+  free(fold);
+  if(next) module_memlloc_fold_destroy(next);
 }
 
 struct MarkMarker{
@@ -89,17 +127,39 @@ static void *module_memlloc_mark_alloc(Mark *mark, usz size){
   return NULL;
 }
 
+static void module_memlloc_mark_quickPop(Mark *mark, void *mem, usz size){
+  MarkMarker *marker = mark->ready;
+  mark->ready = mem;
+  mark->ready->size = size;
+  mark->ready->next = marker;
+}
+
+static void module_memlloc_mark_localDefrag(MarkMarker *marker){
+recursive:
+  if(!marker->next) return;
+  if((u8*)marker + marker->size == (u8*)marker->next){
+    marker->size += marker->next->size;
+    marker->next = marker->next->next;
+    goto recursive;
+  }
+}
+
 static void module_memlloc_mark_pop(Mark *mark, void *mem, usz size){
   size += sizeof(MarkMarker) - 1;
   size &= ~(sizeof(MarkMarker) - 1);
-  MarkMarker *marker = mark->ready;
-  mark->ready = mem;
-  if(mem + size == (void*)marker){
-    size += marker->size;
-    marker = marker->next;
+  MarkMarker *marker = mark->ready, *cast = mem;
+  if(!marker || cast < marker){
+    cast->next = marker;
+    cast->size = size;
+    mark->ready = cast;
+    mark_localDefrag(mark->ready);
+    return;
   }
-  mark->ready->size = size;
-  mark->ready->next = marker;
+  while(marker->next && cast > marker->next) marker = marker->next;
+  cast->next = marker->next;
+  cast->size = size;
+  marker->next = cast;
+  mark_localDefrag(marker);
 }
 
 static void module_memlloc_mark_defragment(Mark *mark){
@@ -135,6 +195,7 @@ static void module_memlloc_mark_free(Mark *mark){
 }
 
 static void module_memlloc_mark_destroy(Mark *mark){
+  memset(mark->root, 0, mark->cap);
   free(mark->root);
   *mark = (Mark){0};
 }
@@ -178,6 +239,7 @@ static void module_memlloc_pool_free(Pool *pool){
 }
 
 static void module_memlloc_pool_destroy(Pool *pool){
+  memset(pool->root, 0, pool->chkSize * pool->chkCount);
   free(pool->root);
   *pool = (Pool){0};
 }
@@ -262,6 +324,7 @@ static void module_memlloc_slide_free(Slide *sld){
 }
 
 static void module_memlloc_slide_destroy(Slide *sld){
+  memset(sld->mem, 0, sld->cap);
   free(sld->mem);
   *sld = (Slide){0};
 }
@@ -275,9 +338,17 @@ const struct module_memlloc memlloc = {
     .free = module_memlloc_arena_free,
     .destroy = module_memlloc_arena_destroy
   },
+  .fold = {
+    .new = module_memlloc_fold_new,
+    .get = module_memlloc_fold_get,
+    .reduce = module_memlloc_fold_reduce,
+    .free = module_memlloc_fold_free,
+    .destroy = module_memlloc_fold_destroy
+  },
   .mark = {
     .new = module_memlloc_mark_new,
     .alloc = module_memlloc_mark_alloc,
+    .quickPop = module_memlloc_mark_quickPop,
     .pop = module_memlloc_mark_pop,
     .defragment = module_memlloc_mark_defragment,
     .free = module_memlloc_mark_free,

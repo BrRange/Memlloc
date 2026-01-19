@@ -37,6 +37,8 @@ Mark mark_new(usz size);
 
 void *mark_alloc(Mark *mark, usz size);
 
+void mark_quickPop(Mark *mark, void *mem, usz size);
+
 void mark_pop(Mark *mark, void *mem, usz size);
 
 void mark_defragment(Mark *mark);
@@ -44,5 +46,7 @@ void mark_defragment(Mark *mark);
 void mark_free(Mark *mark);
 
 void mark_destroy(Mark *mark);
+
+const extern usz mark_pageSize;
 
 #endif
