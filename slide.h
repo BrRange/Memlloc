@@ -1,8 +1,8 @@
 #ifndef MEMLLOC_SLIDE_
 #define MEMLLOC_SLIDE_
 
-#ifndef RUSTYDEFH
-#define RUSTYDEFH
+#ifndef RUSTY_DEFINITION_
+#define RUSTY_DEFINITION_
 
 #define arrLen(_arr) (sizeof(_arr) / sizeof*(_arr))
 #define deref(_ptr, _type) (*(_type*)(_ptr))

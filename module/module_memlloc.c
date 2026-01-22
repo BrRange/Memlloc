@@ -128,6 +128,8 @@ static void *module_memlloc_mark_alloc(Mark *mark, usz size){
 }
 
 static void module_memlloc_mark_quickPop(Mark *mark, void *mem, usz size){
+  size += sizeof(MarkMarker) - 1;
+  size &= ~(sizeof(MarkMarker) - 1);
   MarkMarker *marker = mark->ready;
   mark->ready = mem;
   mark->ready->size = size;
@@ -152,14 +154,14 @@ static void module_memlloc_mark_pop(Mark *mark, void *mem, usz size){
     cast->next = marker;
     cast->size = size;
     mark->ready = cast;
-    mark_localDefrag(mark->ready);
+    module_memlloc_mark_localDefrag(mark->ready);
     return;
   }
   while(marker->next && cast > marker->next) marker = marker->next;
   cast->next = marker->next;
   cast->size = size;
   marker->next = cast;
-  mark_localDefrag(marker);
+  module_memlloc_mark_localDefrag(marker);
 }
 
 static void module_memlloc_mark_defragment(Mark *mark){
