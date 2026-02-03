@@ -6,6 +6,8 @@
 
 #define arrLen(_arr) (sizeof(_arr) / sizeof*(_arr))
 #define deref(_ptr, _type) (*(_type*)(_ptr))
+#define pointer(_type...) typeof(typeof(_type)*)
+#define defer(_freeFn) __attribute__((cleanup(_freeFn)))
 
 #include <stdint.h>
 #include <stdbool.h>
